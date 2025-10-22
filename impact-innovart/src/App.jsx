@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import LogoImpact from "./assets/Logoimpact.jpg";
+import LogoImpact from "./Assets/Logoimpact.jpg";
 
 /**
  * Impact by Innovart.MD — Cotizador Web (Preview)
