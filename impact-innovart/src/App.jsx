@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import LogoImpact from "./assets/Logoimpact.jpg";
 
 /**
  * Impact by Innovart.MD — Cotizador Web (Preview)
@@ -186,9 +187,14 @@ export default function App() {
     <div className="w-full min-h-screen bg-white text-neutral-900">
       <div className="max-w-6xl mx-auto p-4 md:p-6">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-4">
-          <div className="font-extrabold text-2xl tracking-tight">IMPACT <span className="text-yellow-500">by Innovart.MD</span></div>
-        </div>
+       <div className="flex items-center gap-4 mb-4">
+  <img
+    src={LogoImpact}
+    alt="Innovart.MD"
+    className="h-12 md:h-16 w-auto select-none"
+  />
+</div>
+
 
         {/* INFORMACIÓN DEL CLIENTE */}
         <section className="rounded-2xl border p-4 md:p-6 shadow-sm mb-6">
