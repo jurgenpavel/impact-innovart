@@ -106,7 +106,7 @@ export default function App() {
   // Información del cliente
   const [cliente, setCliente] = useState("");
   const [fecha, setFecha] = useState("");
-  const [numCotizacion, setNumCotizacion] = useState("");
+  const [vendedor, setVendedor] = useState(""); // ← nuevo
 
   // Cost Breakdown
   const [producto, setProducto] = useState("");
@@ -141,19 +141,25 @@ export default function App() {
   const densidad = useMemo(() => (composicion ? DENSIDADES[composicion] : 0), [composicion]);
 
   // Volumen (mm^3)
-  const volumenBruto = useMemo(() => (Number(espesorMm) * Number(largoMm) * Number(anchoMm)) || 0, [espesorMm, largoMm, anchoMm]);
+  const volumenBruto = useMemo(
+    () => (Number(espesorMm) * Number(largoMm) * Number(anchoMm)) || 0,
+    [espesorMm, largoMm, anchoMm]
+  );
+
   // Peso sin scrap (kg)
   const pesoBrutoSinScrap = useMemo(() => {
     if (!densidad) return 0;
-    return (Number(espesorMm)/1000) * densidad * (Number(largoMm)/1000) * (Number(anchoMm)/1000);
+    return (Number(espesorMm) / 1000) * densidad * (Number(largoMm) / 1000) * (Number(anchoMm) / 1000);
   }, [densidad, espesorMm, largoMm, anchoMm]);
+
   // LARGO+SCRAP y ANCHO+SCRAP (m)
-  const largoMasScrap = useMemo(() => ((Number(espesorMm)/1000) * 2) + (Number(largoMm)/1000), [espesorMm, largoMm]);
-  const anchoMasScrap = useMemo(() => ((Number(espesorMm)/1000) * 2) + (Number(anchoMm)/1000), [espesorMm, anchoMm]);
+  const largoMasScrap = useMemo(() => ((Number(espesorMm) / 1000) * 2) + (Number(largoMm) / 1000), [espesorMm, largoMm]);
+  const anchoMasScrap = useMemo(() => ((Number(espesorMm) / 1000) * 2) + (Number(anchoMm) / 1000), [espesorMm, anchoMm]);
+
   // Peso con scrap (kg)
   const pesoBruto = useMemo(() => {
     if (!densidad) return 0;
-    return (Number(espesorMm)/1000) * densidad * largoMasScrap * anchoMasScrap;
+    return (Number(espesorMm) / 1000) * densidad * largoMasScrap * anchoMasScrap;
   }, [densidad, espesorMm, largoMasScrap, anchoMasScrap]);
 
   // Materia prima
@@ -162,19 +168,34 @@ export default function App() {
 
   // Operaciones
   const costoMmPorComp = useMemo(() => costoPorMmFrom(espRow, composicion), [espRow, composicion]);
-  const precioCorte = useMemo(() => (Number(perimetroCorte) * Number(costoMmPorComp)) + (Number(tiempoCorte) * TARIFA_TIEMPO.corte), [perimetroCorte, costoMmPorComp, tiempoCorte]);
+  const precioCorte = useMemo(
+    () => (Number(perimetroCorte) * Number(costoMmPorComp)) + (Number(tiempoCorte) * TARIFA_TIEMPO.corte),
+    [perimetroCorte, costoMmPorComp, tiempoCorte]
+  );
   const precioPorDoblez = useMemo(() => COSTO_DOBLEZ_POR_MM.get(Number(espesorMm)) || 0, [espesorMm]);
-  const precioDoblez = useMemo(() => (Number(cantDoblez) * precioPorDoblez) + (Number(tiempoDoblez) * TARIFA_TIEMPO.doblez), [cantDoblez, precioPorDoblez, tiempoDoblez]);
+  const precioDoblez = useMemo(
+    () => (Number(cantDoblez) * precioPorDoblez) + (Number(tiempoDoblez) * TARIFA_TIEMPO.doblez),
+    [cantDoblez, precioPorDoblez, tiempoDoblez]
+  );
   const precioMaquinado = useMemo(() => Number(tiempoMaquinado) * TARIFA_TIEMPO.maquinado, [tiempoMaquinado]);
+
   const soldaduraMm = useMemo(() => {
     if (composicion === "ACC") return SOLDADURA_POR_MM.ACC;
     if (composicion === "INOX") return SOLDADURA_POR_MM.INOX;
     if (composicion === "ALUMINIO") return SOLDADURA_POR_MM.ALUMINIO;
     return 0;
   }, [composicion]);
-  const precioSoldadura = useMemo(() => (Number(perimetroSoldadura) * soldaduraMm) + (Number(tiempoSoldadura) * TARIFA_TIEMPO.soldadura), [perimetroSoldadura, soldaduraMm, tiempoSoldadura]);
 
-  const manoDeObra = useMemo(() => precioCorte + precioDoblez + precioMaquinado + precioSoldadura + Number(costoPintura) + Number(costoEmpaque), [precioCorte, precioDoblez, precioMaquinado, precioSoldadura, costoPintura, costoEmpaque]);
+  const precioSoldadura = useMemo(
+    () => (Number(perimetroSoldadura) * soldaduraMm) + (Number(tiempoSoldadura) * TARIFA_TIEMPO.soldadura),
+    [perimetroSoldadura, soldaduraMm, tiempoSoldadura]
+  );
+
+  const manoDeObra = useMemo(
+    () => precioCorte + precioDoblez + precioMaquinado + precioSoldadura + Number(costoPintura) + Number(costoEmpaque),
+    [precioCorte, precioDoblez, precioMaquinado, precioSoldadura, costoPintura, costoEmpaque]
+  );
+
   const costoMateriaPrima = costoNetoMP;
   const subtotal = useMemo(() => costoMateriaPrima + manoDeObra, [costoMateriaPrima, manoDeObra]);
   const totalMXN = useMemo(() => subtotal * (1 + Number(utilidad || 0)), [subtotal, utilidad]);
@@ -187,14 +208,13 @@ export default function App() {
     <div className="w-full min-h-screen bg-white text-neutral-900">
       <div className="max-w-6xl mx-auto p-4 md:p-6">
         {/* Header */}
-       <div className="flex items-center gap-4 mb-4">
-  <img
-    src={LogoImpact}
-    alt="Innovart.MD"
-    className="h-12 md:h-16 w-auto select-none"
-  />
-</div>
-
+        <div className="flex items-center gap-4 mb-4">
+          <img
+            src={LogoImpact}
+            alt="Innovart.MD"
+            className="h-12 md:h-16 w-auto select-none"
+          />
+        </div>
 
         {/* INFORMACIÓN DEL CLIENTE */}
         <section className="rounded-2xl border p-4 md:p-6 shadow-sm mb-6">
@@ -202,7 +222,7 @@ export default function App() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <TextField label="Nombre de cliente" value={cliente} onChange={setCliente} />
             <TextField label="Fecha" value={fecha} onChange={setFecha} />
-            <TextField label="Número de cotización" value={numCotizacion} onChange={setNumCotizacion} />
+            <TextField label="Vendedor" value={vendedor} onChange={setVendedor} />
           </div>
         </section>
 
@@ -308,37 +328,53 @@ function NumberField({ label, value, onChange, step = 1, min }) {
   return (
     <div>
       <label className="text-sm font-medium">{label}</label>
-      <input type="number" className="mt-1 w-full rounded-xl border px-3 py-2"
-        value={value} step={step} min={min}
-        onChange={(e)=> onChange(Number(e.target.value))} />
+      <input
+        type="number"
+        className="mt-1 w-full rounded-xl border px-3 py-2"
+        value={value}
+        step={step}
+        min={min}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
     </div>
   );
 }
-function TextField({ label, value, onChange, placeholder="", className="" }) {
+
+function TextField({ label, value, onChange, placeholder = "", className = "" }) {
   return (
     <div className={className}>
       <label className="text-sm font-medium">{label}</label>
-      <input className="mt-1 w-full rounded-xl border px-3 py-2"
+      <input
+        className="mt-1 w-full rounded-xl border px-3 py-2"
         placeholder={placeholder}
         value={value}
-        onChange={(e)=> onChange(e.target.value)} />
+        onChange={(e) => onChange(e.target.value)}
+      />
     </div>
   );
 }
+
 function SelectField({ label, value, onChange, options, placeholder }) {
-  const opts = options.map(o => typeof o === "string" ? ({value:o, label:o}) : o);
+  const opts = options.map((o) => (typeof o === "string" ? { value: o, label: o } : o));
   return (
     <div>
       <label className="text-sm font-medium">{label}</label>
-      <select className="mt-1 w-full rounded-xl border px-3 py-2"
+      <select
+        className="mt-1 w-full rounded-xl border px-3 py-2"
         value={value}
-        onChange={(e)=> onChange(e.target.value)}>
+        onChange={(e) => onChange(e.target.value)}
+      >
         <option value="">{placeholder || "Selecciona..."}</option>
-        {opts.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+        {opts.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
       </select>
     </div>
   );
 }
+
 function Info({ label, value }) {
   return (
     <div className="rounded-xl border px-3 py-2 bg-neutral-50">
@@ -347,6 +383,7 @@ function Info({ label, value }) {
     </div>
   );
 }
+
 function Card({ title, children }) {
   return (
     <div className="rounded-2xl border p-4 shadow-sm">
@@ -355,9 +392,10 @@ function Card({ title, children }) {
     </div>
   );
 }
+
 function Line({ label, value, bold }) {
   return (
-    <div className={`flex items-center justify-between ${bold ? 'font-semibold' : ''}`}>
+    <div className={`flex items-center justify-between ${bold ? "font-semibold" : ""}`}>
       <div className="text-sm text-neutral-700">{label}</div>
       <div className="tabular-nums">{value}</div>
     </div>
