@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import LogoImpact from "./Assets/Logoimpact.jpg";
 
 /**
@@ -103,10 +104,12 @@ const costoPorMmFrom = (row, comp) => {
 };
 
 export default function App() {
+  const navigate = useNavigate();
+
   // Información del cliente
   const [cliente, setCliente] = useState("");
   const [fecha, setFecha] = useState("");
-  const [vendedor, setVendedor] = useState(""); // ← nuevo
+  const [vendedor, setVendedor] = useState("");
 
   // Cost Breakdown
   const [producto, setProducto] = useState("");
@@ -153,8 +156,14 @@ export default function App() {
   }, [densidad, espesorMm, largoMm, anchoMm]);
 
   // LARGO+SCRAP y ANCHO+SCRAP (m)
-  const largoMasScrap = useMemo(() => ((Number(espesorMm) / 1000) * 2) + (Number(largoMm) / 1000), [espesorMm, largoMm]);
-  const anchoMasScrap = useMemo(() => ((Number(espesorMm) / 1000) * 2) + (Number(anchoMm) / 1000), [espesorMm, anchoMm]);
+  const largoMasScrap = useMemo(
+    () => (Number(espesorMm) / 1000) * 2 + Number(largoMm) / 1000,
+    [espesorMm, largoMm]
+  );
+  const anchoMasScrap = useMemo(
+    () => (Number(espesorMm) / 1000) * 2 + Number(anchoMm) / 1000,
+    [espesorMm, anchoMm]
+  );
 
   // Peso con scrap (kg)
   const pesoBruto = useMemo(() => {
@@ -169,12 +178,12 @@ export default function App() {
   // Operaciones
   const costoMmPorComp = useMemo(() => costoPorMmFrom(espRow, composicion), [espRow, composicion]);
   const precioCorte = useMemo(
-    () => (Number(perimetroCorte) * Number(costoMmPorComp)) + (Number(tiempoCorte) * TARIFA_TIEMPO.corte),
+    () => Number(perimetroCorte) * Number(costoMmPorComp) + Number(tiempoCorte) * TARIFA_TIEMPO.corte,
     [perimetroCorte, costoMmPorComp, tiempoCorte]
   );
   const precioPorDoblez = useMemo(() => COSTO_DOBLEZ_POR_MM.get(Number(espesorMm)) || 0, [espesorMm]);
   const precioDoblez = useMemo(
-    () => (Number(cantDoblez) * precioPorDoblez) + (Number(tiempoDoblez) * TARIFA_TIEMPO.doblez),
+    () => Number(cantDoblez) * precioPorDoblez + Number(tiempoDoblez) * TARIFA_TIEMPO.doblez,
     [cantDoblez, precioPorDoblez, tiempoDoblez]
   );
   const precioMaquinado = useMemo(() => Number(tiempoMaquinado) * TARIFA_TIEMPO.maquinado, [tiempoMaquinado]);
@@ -187,7 +196,7 @@ export default function App() {
   }, [composicion]);
 
   const precioSoldadura = useMemo(
-    () => (Number(perimetroSoldadura) * soldaduraMm) + (Number(tiempoSoldadura) * TARIFA_TIEMPO.soldadura),
+    () => Number(perimetroSoldadura) * soldaduraMm + Number(tiempoSoldadura) * TARIFA_TIEMPO.soldadura,
     [perimetroSoldadura, soldaduraMm, tiempoSoldadura]
   );
 
@@ -200,9 +209,31 @@ export default function App() {
   const subtotal = useMemo(() => costoMateriaPrima + manoDeObra, [costoMateriaPrima, manoDeObra]);
   const totalMXN = useMemo(() => subtotal * (1 + Number(utilidad || 0)), [subtotal, utilidad]);
   const totalMXNConIVA = useMemo(() => totalMXN * 1.16, [totalMXN]);
-  const totalUSDConIVA = useMemo(() => (tipoCambio ? totalMXNConIVA / Number(tipoCambio) : 0), [totalMXNConIVA, tipoCambio]);
+  const totalUSDConIVA = useMemo(
+    () => (tipoCambio ? totalMXNConIVA / Number(tipoCambio) : 0),
+    [totalMXNConIVA, tipoCambio]
+  );
 
   const opcionesEspesor = useMemo(() => ESPESORES.map((r) => r.mm), []);
+
+  // ----- Navegación al resumen (para PDF) -----
+  const handleGeneratePDF = () => {
+    const precioUnitarioMXN = cantidad ? totalMXN / Number(cantidad) : totalMXN;
+    navigate("/resumen", {
+      state: {
+        cliente,
+        fecha,
+        vendedor,
+        producto,
+        descripcion,
+        cantidad,
+        precioUnitarioMXN,  // precio unitario sin IVA (incluye utilidad)
+        subtotalMXN: totalMXN,
+        totalMXNConIVA,
+        ivaPercent: 16
+      },
+    });
+  };
 
   return (
     <div className="w-full min-h-screen bg-white text-neutral-900">
@@ -237,8 +268,8 @@ export default function App() {
             <NumberField label="Cantidad" value={cantidad} onChange={setCantidad} min={1} />
 
             <SelectField label="Material" value={material} onChange={setMaterial} options={MATERIALES} placeholder="Selecciona material…" />
-            <SelectField label="Composición" value={composicion} onChange={setComposicion} options={COMPOSICIONES.map(c=>({value:c.key,label:c.label}))} placeholder="Selecciona composición…" />
-            <SelectField label="Espesor (mm)" value={espesorMm ?? ""} onChange={(v)=>setEspesorMm(Number(v))} options={opcionesEspesor.map(v=>({value:v,label:v}))} placeholder="Selecciona espesor…" />
+            <SelectField label="Composición" value={composicion} onChange={setComposicion} options={COMPOSICIONES.map(c => ({ value: c.key, label: c.label }))} placeholder="Selecciona composición…" />
+            <SelectField label="Espesor (mm)" value={espesorMm ?? ""} onChange={(v) => setEspesorMm(Number(v))} options={opcionesEspesor.map(v => ({ value: v, label: v }))} placeholder="Selecciona espesor…" />
 
             <NumberField label="Costo por Kg (MXN)" value={costoKg} onChange={setCostoKg} />
             <NumberField label="Largo (mm)" value={largoMm} onChange={setLargoMm} />
@@ -246,12 +277,12 @@ export default function App() {
           </div>
 
           <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <Info label="Densidad (kg/m³)" value={fmt(densidad,0)} />
-            <Info label="Volumen bruto (mm³)" value={fmt(volumenBruto,0)} />
-            <Info label="Peso bruto sin scrap (kg)" value={fmt(pesoBrutoSinScrap,3)} />
-            <Info label="Largo + Scrap (m)" value={fmt(largoMasScrap,3)} />
-            <Info label="Ancho + Scrap (m)" value={fmt(anchoMasScrap,3)} />
-            <Info label="Peso bruto (kg)" value={fmt(pesoBruto,3)} />
+            <Info label="Densidad (kg/m³)" value={fmt(densidad, 0)} />
+            <Info label="Volumen bruto (mm³)" value={fmt(volumenBruto, 0)} />
+            <Info label="Peso bruto sin scrap (kg)" value={fmt(pesoBrutoSinScrap, 3)} />
+            <Info label="Largo + Scrap (m)" value={fmt(largoMasScrap, 3)} />
+            <Info label="Ancho + Scrap (m)" value={fmt(anchoMasScrap, 3)} />
+            <Info label="Peso bruto (kg)" value={fmt(pesoBruto, 3)} />
             <Info label="Costo bruto MP" value={money(costoBrutoMP)} />
             <Info label="Costo neto MP (c/ IVA)" value={money(costoNetoMP)} />
           </div>
@@ -273,13 +304,13 @@ export default function App() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-6">
-            <Info label="Tarifa tiempo corte (MXN/s)" value={fmt(TARIFA_TIEMPO.corte,2)} />
-            <Info label="Tarifa tiempo doblez (MXN/s)" value={fmt(TARIFA_TIEMPO.doblez,2)} />
-            <Info label="Tarifa tiempo maqu. (MXN/s)" value={fmt(TARIFA_TIEMPO.maquinado,2)} />
-            <Info label="Tarifa tiempo sold. (MXN/s)" value={fmt(TARIFA_TIEMPO.soldadura,2)} />
-            <Info label="$ /mm material (espesor×comp)" value={fmt(costoMmPorComp,3)} />
-            <Info label="$ /doblez (por espesor)" value={fmt(precioPorDoblez,2)} />
-            <Info label="$ /mm soldadura (según comp)" value={fmt(soldaduraMm,2)} />
+            <Info label="Tarifa tiempo corte (MXN/s)" value={fmt(TARIFA_TIEMPO.corte, 2)} />
+            <Info label="Tarifa tiempo doblez (MXN/s)" value={fmt(TARIFA_TIEMPO.doblez, 2)} />
+            <Info label="Tarifa tiempo maqu. (MXN/s)" value={fmt(TARIFA_TIEMPO.maquinado, 2)} />
+            <Info label="Tarifa tiempo sold. (MXN/s)" value={fmt(TARIFA_TIEMPO.soldadura, 2)} />
+            <Info label="$ /mm material (espesor×comp)" value={fmt(costoMmPorComp, 3)} />
+            <Info label="$ /doblez (por espesor)" value={fmt(precioPorDoblez, 2)} />
+            <Info label="$ /mm soldadura (según comp)" value={fmt(soldaduraMm, 2)} />
           </div>
         </section>
 
@@ -312,12 +343,22 @@ export default function App() {
               <Line label="Subtotal" value={money(subtotal)} />
               <Line label="Total MXN" value={money(totalMXN)} />
               <Line label="Total MXN + IVA" value={money(totalMXNConIVA)} />
-              <Line label="Total USD + IVA" value={`$ ${fmt(totalUSDConIVA,2)} USD`} />
+              <Line label="Total USD + IVA" value={`$ ${fmt(totalUSDConIVA, 2)} USD`} />
             </Card>
           </div>
         </section>
 
-        <div className="text-xs text-neutral-500 mt-6">Preview de cálculos — Innovart.MD</div>
+        {/* Botón para generar cotización */}
+        <button
+          onClick={handleGeneratePDF}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mt-6"
+        >
+          Generar cotización (PDF)
+        </button>
+
+        <div className="text-xs text-neutral-500 mt-6">
+          Preview de cálculos — Innovart.MD
+        </div>
       </div>
     </div>
   );
