@@ -105,6 +105,9 @@ const costoPorMmFrom = (row, comp) => {
 
 export default function App() {
   const navigate = useNavigate();
+  // Folio de Odoo
+  const [folio, setFolio] = useState("");
+  const [loadingFolio, setLoadingFolio] = useState(false);
 
   // Información del cliente
   const [cliente, setCliente] = useState("");
@@ -215,25 +218,55 @@ export default function App() {
   );
 
   const opcionesEspesor = useMemo(() => ESPESORES.map((r) => r.mm), []);
+  async function getFolioFromOdoo() {
+  try {
+    setLoadingFolio(true);
+    const resp = await fetch("/api/odoo-next-quote");
+    const data = await resp.json();
+    if (resp.ok && data.folio) {
+      setFolio(data.folio);
+      return data.folio; // ← retornar para usarlo inmediatamente
+    } else {
+      console.error(data?.error || "No se pudo obtener el folio");
+      alert("No se pudo obtener el folio desde Odoo.");
+      return null;
+    }
+  } catch (e) {
+    console.error(e);
+    alert("Error de comunicación con el servicio de Odoo.");
+    return null;
+  } finally {
+    setLoadingFolio(false);
+  }
+}
 
   // ----- Navegación al resumen (para PDF) -----
-  const handleGeneratePDF = () => {
-    const precioUnitarioMXN = cantidad ? totalMXN / Number(cantidad) : totalMXN;
-    navigate("/resumen", {
-      state: {
-        cliente,
-        fecha,
-        vendedor,
-        producto,
-        descripcion,
-        cantidad,
-        precioUnitarioMXN,  // precio unitario sin IVA (incluye utilidad)
-        subtotalMXN: totalMXN,
-        totalMXNConIVA,
-        ivaPercent: 16
-      },
-    });
-  };
+    const handleGeneratePDF = async () => {
+  let folioLocal = folio;
+  if (!folioLocal) {
+    folioLocal = await getFolioFromOdoo(); // usa el return inmediato
+  }
+
+  const precioUnitarioSinIVA = cantidad ? (totalMXN / Number(cantidad)) : totalMXN;
+  const precioUnitarioConIVA = cantidad ? (totalMXNConIVA / Number(cantidad)) : totalMXNConIVA;
+
+  navigate("/resumen", {
+    state: {
+      folio: folioLocal || null,
+      cliente,
+      fecha,
+      vendedor,
+      producto,
+      descripcion,
+      cantidad,
+      precioUnitarioSinIVA,
+      precioUnitarioConIVA,
+      subtotalMXN: totalMXN,
+      totalMXNConIVA,
+      ivaPercent: 16
+    },
+  });
+};
 
   return (
     <div className="w-full min-h-screen bg-white text-neutral-900">
@@ -314,39 +347,67 @@ export default function App() {
           </div>
         </section>
 
-        {/* RESULTADOS */}
-        <section className="rounded-2xl border p-4 md:p-6 shadow-sm">
-          <h2 className="font-extrabold text-xl mb-4">RESULTADOS</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <NumberField label="Utilidad (ej. 0.25 = 25%)" value={utilidad} onChange={setUtilidad} step={0.01} />
-            <NumberField label="Valor del dólar (MXN)" value={tipoCambio} onChange={setTipoCambio} step={0.01} />
-            <div className="hidden md:block" />
-          </div>
+     {/* RESULTADOS */}
+<section className="rounded-2xl border p-4 md:p-6 shadow-sm">
+  <h2 className="font-extrabold text-xl mb-4">RESULTADOS</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card title="Materia Prima">
-              <Line label="$ Costo bruto" value={money(costoBrutoMP)} />
-              <Line label="$ Costo neto (c/ IVA)" value={money(costoNetoMP)} />
-            </Card>
-            <Card title="Mano de Obra (detalle)">
-              <Line label="$ Corte" value={money(precioCorte)} />
-              <Line label="$ Doblez" value={money(precioDoblez)} />
-              <Line label="$ Maquinado" value={money(precioMaquinado)} />
-              <Line label="$ Soldadura" value={money(precioSoldadura)} />
-              <Line label="$ Pintura" value={money(Number(costoPintura))} />
-              <Line label="$ Empaque" value={money(Number(costoEmpaque))} />
-              <div className="mt-2 border-t pt-2">
-                <Line label="Mano de Obra Total" value={money(manoDeObra)} bold />
-              </div>
-            </Card>
-            <Card title="Totales">
-              <Line label="Subtotal" value={money(subtotal)} />
-              <Line label="Total MXN" value={money(totalMXN)} />
-              <Line label="Total MXN + IVA" value={money(totalMXNConIVA)} />
-              <Line label="Total USD + IVA" value={`$ ${fmt(totalUSDConIVA, 2)} USD`} />
-            </Card>
-          </div>
-        </section>
+  {/* Folio Odoo visible en Resultados */}
+  <div className="mb-4">
+    <Info
+      label="Folio Odoo"
+      value={loadingFolio ? "Obteniendo folio…" : (folio || "Pendiente")}
+    />
+    <div className="mt-2">
+      <button
+        onClick={getFolioFromOdoo}
+        className="text-sm px-3 py-1 rounded border hover:bg-neutral-50"
+        disabled={loadingFolio}
+      >
+        {loadingFolio ? "Consultando…" : "Obtener/Actualizar folio"}
+      </button>
+    </div>
+  </div>
+
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <NumberField
+      label="Utilidad (ej. 0.25 = 25%)"
+      value={utilidad}
+      onChange={setUtilidad}
+      step={0.01}
+    />
+    <NumberField
+      label="Valor del dólar (MXN)"
+      value={tipoCambio}
+      onChange={setTipoCambio}
+      step={0.01}
+    />
+    <div className="hidden md:block" />
+  </div>
+
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <Card title="Materia Prima">
+      <Line label="$ Costo bruto" value={money(costoBrutoMP)} />
+      <Line label="$ Costo neto (c/ IVA)" value={money(costoNetoMP)} />
+    </Card>
+    <Card title="Mano de Obra (detalle)">
+      <Line label="$ Corte" value={money(precioCorte)} />
+      <Line label="$ Doblez" value={money(precioDoblez)} />
+      <Line label="$ Maquinado" value={money(precioMaquinado)} />
+      <Line label="$ Soldadura" value={money(precioSoldadura)} />
+      <Line label="$ Pintura" value={money(Number(costoPintura))} />
+      <Line label="$ Empaque" value={money(Number(costoEmpaque))} />
+      <div className="mt-2 border-t pt-2">
+        <Line label="Mano de Obra Total" value={money(manoDeObra)} bold />
+      </div>
+    </Card>
+    <Card title="Totales">
+      <Line label="Subtotal" value={money(subtotal)} />
+      <Line label="Total MXN" value={money(totalMXN)} />
+      <Line label="Total MXN + IVA" value={money(totalMXNConIVA)} />
+      <Line label="Total USD + IVA" value={`$ ${fmt(totalUSDConIVA, 2)} USD`} />
+    </Card>
+  </div>
+</section>
 
         {/* Botón para generar cotización */}
         <button
